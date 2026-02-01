@@ -1,0 +1,132 @@
+SHELL := /bin/bash
+
+# Include project config if present
+-include agent.config
+
+# Defaults (override via agent.config or command line)
+DEV_IMAGE ?= yolobox-dev
+BUILD_ARGS ?=
+HOST_UID := $(shell id -u)
+HOST_GID := $(shell id -g)
+WORKTREES_DIR ?= worktrees
+BASE ?= origin/main
+AGENT ?= agent-a
+
+# Path to yolobox (auto-detect from this Makefile's location)
+YOLOBOX_PATH := $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))
+
+# Repo root is parent of yolobox if using submodule, or current dir if using include
+# Use REPO_ROOT if set, otherwise detect from main Makefile
+ifndef REPO_ROOT
+  REPO_ROOT := $(patsubst %/,%,$(dir $(firstword $(MAKEFILE_LIST))))
+endif
+
+WORKTREES_PATH := $(REPO_ROOT)/$(WORKTREES_DIR)
+HOST_WORKTREE := $(WORKTREES_PATH)/$(AGENT)
+GIT_DIR := $(REPO_ROOT)/.git
+
+PIPCACHE_VOL := $(AGENT)-pipcache
+VENV_VOL := $(AGENT)-venv
+NPM_VOL := $(AGENT)-npm
+HOME_VOL := $(AGENT)-home
+CONTAINER_HOME ?= /home/agent
+DOCKER_RUN_COMMON := --restart unless-stopped --cap-drop=ALL --security-opt no-new-privileges:true \
+	-v "$(HOST_WORKTREE)":/workspace \
+	-v "$(HOST_WORKTREE)":"$(HOST_WORKTREE)" \
+	-v "$(GIT_DIR)":"$(GIT_DIR)" \
+	-v "$(PIPCACHE_VOL)":/pipcache \
+	-v "$(VENV_VOL)":/venv \
+	-v "$(NPM_VOL)":/npm \
+	-v "$(HOME_VOL)":$(CONTAINER_HOME) \
+	-e HOME=$(CONTAINER_HOME) -e CONTAINER_HOME=$(CONTAINER_HOME) \
+	-w /workspace
+
+.PHONY: dev-image worktree-add worktree-rm agent-up agent-sh agent-stop agent-down agents ps agent-setup-tools agent-copy-auth
+
+dev-image:
+	@echo "[yolobox] Building dev image: $(DEV_IMAGE)"
+	docker build -f $(YOLOBOX_PATH)/docker/dev.Dockerfile -t $(DEV_IMAGE) $(BUILD_ARGS) .
+
+worktree-add:
+	@echo "[yolobox] worktree-add AGENT=$(AGENT) BASE=$(BASE)"
+	mkdir -p "$(WORKTREES_PATH)"
+	git -C "$(REPO_ROOT)" fetch --all --prune
+	git -C "$(REPO_ROOT)" worktree add -B $(AGENT) "$(HOST_WORKTREE)" $(BASE)
+	@echo "[yolobox] Created $(HOST_WORKTREE) from $(BASE)"
+
+worktree-rm:
+	@echo "[yolobox] Removing worktree: $(HOST_WORKTREE)"
+	git -C "$(REPO_ROOT)" worktree remove -f "$(HOST_WORKTREE)"
+
+agent-up:
+	@echo "[yolobox] agent-up AGENT=$(AGENT)"
+	@if [ ! -d "$(HOST_WORKTREE)" ]; then \
+		echo "[yolobox] ERROR: Worktree '$(HOST_WORKTREE)' not found."; \
+		echo "Run: make worktree-add AGENT=$(AGENT) BASE=$(BASE)"; \
+		exit 2; \
+	fi
+	@echo "[yolobox] Creating volumes: $(PIPCACHE_VOL) $(VENV_VOL) $(NPM_VOL) $(HOME_VOL)"
+	docker volume create $(PIPCACHE_VOL) >/dev/null
+	docker volume create $(VENV_VOL) >/dev/null
+	docker volume create $(NPM_VOL) >/dev/null
+	docker volume create $(HOME_VOL) >/dev/null
+	- docker rm -f $(AGENT) >/dev/null 2>&1 || true
+	@echo "[yolobox] Fixing volume ownership to $(HOST_UID):$(HOST_GID)"
+	docker run --rm \
+		-v "$(VENV_VOL)":/venv \
+		-v "$(NPM_VOL)":/npm \
+		-v "$(PIPCACHE_VOL)":/pipcache \
+		-v "$(HOME_VOL)":$(CONTAINER_HOME) \
+		$(DEV_IMAGE) bash -lc "chown -R $(HOST_UID):$(HOST_GID) /venv /npm /pipcache $(CONTAINER_HOME) || true"
+	@echo "[yolobox] Starting container: $(AGENT)"
+	docker run -d --name $(AGENT) --user $(HOST_UID):$(HOST_GID) $(DOCKER_RUN_COMMON) $(DEV_IMAGE)
+	@echo "[yolobox] Ensuring passwd/group entries for UID=$(HOST_UID) GID=$(HOST_GID)"
+	docker exec -u 0 $(AGENT) bash -lc "\
+		if ! getent group $(HOST_GID) >/dev/null 2>&1; then \
+			echo 'agent:x:$(HOST_GID):' >> /etc/group; \
+		fi; \
+		if ! getent passwd $(HOST_UID) >/dev/null 2>&1; then \
+			echo 'agent:x:$(HOST_UID):$(HOST_GID):Agent User:/home/agent:/bin/bash' >> /etc/passwd; \
+		fi"
+	@echo "[yolobox] Use: make agent-sh AGENT=$(AGENT)"
+
+agent-sh:
+	@echo "[yolobox] Attaching to container: $(AGENT)"
+	docker exec -it $(AGENT) bash -l
+
+agent-stop:
+	@echo "[yolobox] Stopping container: $(AGENT)"
+	- docker rm -f $(AGENT) >/dev/null 2>&1 || true
+	@echo "[yolobox] Removing volumes: $(PIPCACHE_VOL) $(VENV_VOL) $(NPM_VOL)"
+	- docker volume rm $(PIPCACHE_VOL) >/dev/null 2>&1 || true
+	- docker volume rm $(VENV_VOL) >/dev/null 2>&1 || true
+	- docker volume rm $(NPM_VOL) >/dev/null 2>&1 || true
+	@echo "[yolobox] Keeping worktree and home volume: $(HOME_VOL)"
+
+agent-down:
+	@echo "[yolobox] Tearing down: $(AGENT)"
+	- docker rm -f $(AGENT) >/dev/null 2>&1 || true
+	@echo "[yolobox] Removing volumes: $(PIPCACHE_VOL) $(VENV_VOL) $(NPM_VOL)"
+	- docker volume rm $(PIPCACHE_VOL) >/dev/null 2>&1 || true
+	- docker volume rm $(VENV_VOL) >/dev/null 2>&1 || true
+	- docker volume rm $(NPM_VOL) >/dev/null 2>&1 || true
+	@echo "[yolobox] Removing worktree: $(HOST_WORKTREE)"
+	- git -C "$(REPO_ROOT)" worktree remove -f "$(HOST_WORKTREE)" || true
+	@echo "[yolobox] Removing home volume: $(HOME_VOL)"
+	- docker volume rm $(HOME_VOL) >/dev/null 2>&1 || true
+
+# Install coding agent CLIs into per-agent npm volume
+agent-setup-tools:
+	@echo "[yolobox] Installing coding agent CLIs for $(AGENT)"
+	docker exec -it $(AGENT) bash -lc "npm config set prefix /npm && npm i -g @openai/codex @anthropic-ai/claude-code"
+
+# Copy host auth.json to container
+AUTH_JSON ?= $(HOME)/.codex/auth.json
+agent-copy-auth:
+	@test -f "$(AUTH_JSON)" || (echo "[yolobox] ERROR: AUTH_JSON not found: $(AUTH_JSON)" && exit 2)
+	@echo "[yolobox] Copying $(AUTH_JSON) -> $(AGENT):$(CONTAINER_HOME)/.codex/auth.json"
+	docker exec -it $(AGENT) bash -lc "mkdir -p '$(CONTAINER_HOME)/.codex'"
+	docker cp "$(AUTH_JSON)" $(AGENT):"$(CONTAINER_HOME)/.codex/auth.json"
+
+agents ps:
+	@docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}' | ( sed -u 1q; sort )

@@ -29,6 +29,14 @@ make agent-up AGENT=agent-a
 make agent-sh AGENT=agent-a
 ```
 
+## Setting Up With a Coding Agent
+
+Tell your coding agent (Claude Code, Codex, etc.):
+
+> Add yolobox (github.com/kasima/yolobox) as a submodule and set it up so I can run `make agent-up`
+
+The agent will handle the git submodule, Makefile creation, image build, and container setup.
+
 ## What You Get
 
 Each agent container has:

@@ -44,9 +44,7 @@ DOCKER_RUN_COMMON := --restart unless-stopped --cap-drop=ALL --security-opt no-n
 .PHONY: dev-image worktree-add worktree-rm agent-up agent-sh agent-stop agent-down agents ps agent-setup-tools agent-copy-auth agent-init
 
 agent-init:
-	@if [ -f "$(REPO_ROOT)/AGENTS.md" ]; then \
-		echo "[yolobox] AGENTS.md already exists, skipping"; \
-	else \
+	@if [ ! -f "$(REPO_ROOT)/AGENTS.md" ]; then \
 		cp "$(YOLOBOX_PATH)/AGENTS.md.template" "$(REPO_ROOT)/AGENTS.md"; \
 		echo "[yolobox] Created AGENTS.md - customize for your project"; \
 	fi

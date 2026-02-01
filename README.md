@@ -2,11 +2,16 @@
 
 Disposable dev containers for coding agents. Spin up isolated environments, break things, throw them away.
 
+## Prerequisites
+
+- Docker (Engine + buildx)
+- Git
+
 ## Quick Start (< 5 minutes)
 
 ```bash
 # 1. Add to your repo (submodule or copy)
-git submodule add https://github.com/yourorg/yolobox.git
+git submodule add https://github.com/kasima/yolobox.git
 
 # 2. Create minimal Makefile
 cat > Makefile << 'EOF'
@@ -112,6 +117,40 @@ make dev-image BUILD_ARGS="--build-arg REQUIREMENTS_FILE=requirements.txt"
 
 # Skip coding agent CLIs
 make dev-image BUILD_ARGS="--build-arg INSTALL_AGENT_CLI=false"
+```
+
+## For Coding Agents
+
+If you're a coding agent (Claude Code, Codex, etc.) and you see yolobox in a repo:
+
+**You're likely already inside a yolobox container.** Check with:
+```bash
+make agents  # List running containers
+```
+
+**Your environment:**
+- Working directory: `/workspace` (the git worktree)
+- Python venv: `/venv` (persistent across restarts)
+- npm packages: `/npm` (persistent)
+- pip cache: `/pipcache` (persistent)
+- Home directory: `/home/agent` (where auth lives)
+
+**Common tasks:**
+```bash
+# Install Python packages (persists in /venv)
+pip install some-package
+
+# Install npm packages (persists in /npm)
+npm i -g some-tool
+
+# Run commands in the container
+make agent-sh AGENT=agent-a
+```
+
+**If you need to set up a new agent container:**
+```bash
+make worktree-add AGENT=agent-b BASE=origin/main
+make agent-up AGENT=agent-b
 ```
 
 ## License

@@ -1,6 +1,7 @@
 FROM python:3.11-bookworm
 
 # Build args for customization
+ARG YOLOBOX_PATH=.
 ARG NODE_VERSION=22.20.0
 ARG INSTALL_NODE=true
 ARG INSTALL_AGENT_CLI=true
@@ -85,8 +86,8 @@ RUN if [ "$INSTALL_AGENT_CLI" = "true" ] && [ "$INSTALL_NODE" = "true" ]; then \
     fi
 
 # Auto-scale thread env vars to CPU count in interactive shells
-COPY docker/threads.sh /etc/profile.d/threads.sh
-COPY docker/devprofile.sh /etc/profile.d/devprofile.sh
+COPY ${YOLOBOX_PATH}/docker/threads.sh /etc/profile.d/threads.sh
+COPY ${YOLOBOX_PATH}/docker/devprofile.sh /etc/profile.d/devprofile.sh
 RUN install -d -m 0755 /etc/bash.bashrc.d \
     && cp /etc/profile.d/threads.sh /etc/bash.bashrc.d/threads.sh \
     && cp /etc/profile.d/devprofile.sh /etc/bash.bashrc.d/devprofile.sh \

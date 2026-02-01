@@ -45,7 +45,7 @@ DOCKER_RUN_COMMON := --restart unless-stopped --cap-drop=ALL --security-opt no-n
 
 dev-image:
 	@echo "[yolobox] Building dev image: $(DEV_IMAGE)"
-	docker build -f $(YOLOBOX_PATH)/docker/dev.Dockerfile -t $(DEV_IMAGE) $(BUILD_ARGS) .
+	docker build -f $(YOLOBOX_PATH)/docker/dev.Dockerfile -t $(DEV_IMAGE) --build-arg YOLOBOX_PATH=$(YOLOBOX_PATH) $(BUILD_ARGS) .
 
 worktree-add:
 	@echo "[yolobox] worktree-add AGENT=$(AGENT) BASE=$(BASE)"

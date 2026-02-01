@@ -21,8 +21,8 @@ EOF
 # 3. Build the dev image
 make dev-image
 
-# 4. Create a worktree and spin up a container
-make worktree-add AGENT=agent-a BASE=origin/main
+# 4. Create a worktree and spin up a container (defaults to current HEAD)
+make worktree-add AGENT=agent-a
 make agent-up AGENT=agent-a
 
 # 5. Shell in
@@ -55,7 +55,7 @@ Create `agent.config` in your repo root for project-specific settings:
 ```bash
 # agent.config
 DEV_IMAGE=myproject-dev
-BASE=origin/main
+BASE=origin/main   # override default HEAD
 
 # Optional: install project requirements into image
 # BUILD_ARGS=--build-arg REQUIREMENTS_FILE=requirements.txt
@@ -75,7 +75,7 @@ include yolobox/Makefile.agent
 | Command | Description |
 |---------|-------------|
 | `make dev-image` | Build the dev container image |
-| `make worktree-add AGENT=name` | Create isolated git worktree |
+| `make worktree-add AGENT=name [BASE=ref]` | Create isolated git worktree (BASE defaults to HEAD) |
 | `make agent-up AGENT=name` | Start container for agent |
 | `make agent-sh AGENT=name` | Shell into running container |
 | `make agent-stop AGENT=name` | Stop container, keep worktree |
@@ -87,8 +87,8 @@ include yolobox/Makefile.agent
 Run multiple agents in parallel, each on their own branch:
 
 ```bash
-# Spin up two agents
-make worktree-add AGENT=agent-a BASE=origin/main
+# Spin up two agents (from current HEAD by default, or specify BASE)
+make worktree-add AGENT=agent-a
 make worktree-add AGENT=agent-b BASE=origin/main
 make agent-up AGENT=agent-a
 make agent-up AGENT=agent-b
@@ -157,7 +157,8 @@ make agent-sh AGENT=agent-a
 
 **If you need to set up a new agent container:**
 ```bash
-make worktree-add AGENT=agent-b BASE=origin/main
+make worktree-add AGENT=agent-b              # from current HEAD
+make worktree-add AGENT=agent-b BASE=main    # or specify a branch
 make agent-up AGENT=agent-b
 ```
 

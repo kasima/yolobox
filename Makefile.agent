@@ -9,7 +9,7 @@ BUILD_ARGS ?=
 HOST_UID := $(shell id -u)
 HOST_GID := $(shell id -g)
 WORKTREES_DIR ?= worktrees
-BASE ?= origin/main
+BASE ?= HEAD
 AGENT ?= agent-a
 
 # Path to yolobox (auto-detect from this Makefile's location)

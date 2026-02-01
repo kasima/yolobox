@@ -18,12 +18,12 @@ YOLOBOX_PATH := $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))
 # Repo root is parent of yolobox if using submodule, or current dir if using include
 # Use REPO_ROOT if set, otherwise detect from main Makefile
 ifndef REPO_ROOT
-  REPO_ROOT := $(patsubst %/,%,$(dir $(firstword $(MAKEFILE_LIST))))
+  REPO_ROOT := $(abspath $(patsubst %/,%,$(dir $(firstword $(MAKEFILE_LIST)))))
 endif
 
-WORKTREES_PATH := $(REPO_ROOT)/$(WORKTREES_DIR)
-HOST_WORKTREE := $(WORKTREES_PATH)/$(AGENT)
-GIT_DIR := $(REPO_ROOT)/.git
+WORKTREES_PATH := $(abspath $(REPO_ROOT)/$(WORKTREES_DIR))
+HOST_WORKTREE := $(abspath $(WORKTREES_PATH)/$(AGENT))
+GIT_DIR := $(abspath $(REPO_ROOT)/.git)
 
 PIPCACHE_VOL := $(AGENT)-pipcache
 VENV_VOL := $(AGENT)-venv

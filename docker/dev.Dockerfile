@@ -70,7 +70,8 @@ WORKDIR /workspace
 # Install project requirements if provided via build context
 # Usage: docker build --build-arg REQUIREMENTS_FILE=requirements.txt ...
 ARG REQUIREMENTS_FILE=""
-COPY ${REQUIREMENTS_FILE:-.dockerignore} /tmp/requirements.txt*
+ARG REQUIREMENTS_FALLBACK=${YOLOBOX_PATH}/docker/.norequirements
+COPY ${REQUIREMENTS_FILE:-${REQUIREMENTS_FALLBACK}} /tmp/requirements.txt*
 RUN set -eux; \
     if [ -f /tmp/requirements.txt ] && [ -s /tmp/requirements.txt ] && [ "$(head -c 1 /tmp/requirements.txt)" != "#" ]; then \
       pip install --no-cache-dir -r /tmp/requirements.txt; \

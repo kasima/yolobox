@@ -1,0 +1,3 @@
+# yolobox dockerignore - also serves as fallback for optional REQUIREMENTS_FILE
+.git
+worktrees

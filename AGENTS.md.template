@@ -1,0 +1,54 @@
+# Agent Onboarding
+
+<!-- Describe your app/project here: what it does, primary interactions, architecture overview -->
+
+## Container Environment
+
+You're running inside a yolobox dev container. Your environment:
+
+| Path | Purpose |
+|------|---------|
+| `/workspace` | Your code (git worktree) |
+| `/venv` | Python virtualenv (persistent) |
+| `/npm` | npm global packages (persistent) |
+| `/pipcache` | pip cache (persistent) |
+| `/home/agent` | Home directory with auth |
+
+**Useful commands:**
+```bash
+make agents              # List running containers
+make agent-sh AGENT=name # Shell into container
+```
+
+**Installing packages (persists across restarts):**
+```bash
+pip install some-package    # Python
+npm i -g some-tool          # Node.js
+```
+
+## Key Files
+
+<!-- List the most important files an agent should read first -->
+
+## Build and Test
+
+<!-- Add your build/test commands here -->
+
+## Repository Guidelines
+
+### Coding Style
+<!-- Describe your coding conventions -->
+
+### Testing
+<!-- Describe testing approach, how to run tests -->
+
+### Commits
+- Use imperative, concise commit messages: "Fix ...", "Add ...", "Update ..."
+- Before committing code changes, let the user verify the changes first
+- Tell the user how and what they need to verify
+
+## Agent Tips
+
+- Prefer running single tests for speed when iterating
+- Ask the user to run interactive commands (simulators, GUIs) and paste output
+- Don't commit tests without verifying they pass first

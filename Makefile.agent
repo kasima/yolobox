@@ -41,7 +41,7 @@ DOCKER_RUN_COMMON := --restart unless-stopped --cap-drop=ALL --security-opt no-n
 	-e HOME=$(CONTAINER_HOME) -e CONTAINER_HOME=$(CONTAINER_HOME) \
 	-w /workspace
 
-.PHONY: dev-image worktree-add worktree-rm agent-up agent-sh agent-stop agent-down agents ps agent-setup-tools agent-copy-auth agent-copy-claude-auth agent-copy-codex-auth agent-init
+.PHONY: dev-image worktree-add worktree-rm agent-up agent-sh agent-stop agent-down agents ps agent-setup-tools agent-copy-auth agent-init
 
 agent-init:
 	@if [ ! -f "$(REPO_ROOT)/AGENTS.md" ]; then \
@@ -126,34 +126,13 @@ agent-setup-tools:
 	@echo "[yolobox] Installing coding agent CLIs for $(AGENT)"
 	docker exec -it $(AGENT) bash -lc "npm config set prefix /npm && npm i -g @openai/codex @anthropic-ai/claude-code"
 
-# Copy Claude credentials to container
-CLAUDE_CREDS ?= $(HOME)/.claude/.credentials.json
-agent-copy-claude-auth:
-	@test -f "$(CLAUDE_CREDS)" || (echo "[yolobox] ERROR: Claude credentials not found: $(CLAUDE_CREDS)" && exit 2)
-	@echo "[yolobox] Copying Claude credentials to $(AGENT)"
-	docker exec $(AGENT) bash -lc "mkdir -p '$(CONTAINER_HOME)/.claude'"
-	docker cp "$(CLAUDE_CREDS)" $(AGENT):"$(CONTAINER_HOME)/.claude/.credentials.json"
-
-# Copy Codex auth to container
-CODEX_AUTH ?= $(HOME)/.codex/auth.json
-agent-copy-codex-auth:
-	@test -f "$(CODEX_AUTH)" || (echo "[yolobox] ERROR: Codex auth not found: $(CODEX_AUTH)" && exit 2)
-	@echo "[yolobox] Copying Codex auth to $(AGENT)"
-	docker exec $(AGENT) bash -lc "mkdir -p '$(CONTAINER_HOME)/.codex'"
-	docker cp "$(CODEX_AUTH)" $(AGENT):"$(CONTAINER_HOME)/.codex/auth.json"
-
-# Copy both Claude and Codex auth (skips missing)
+# Copy host auth.json to container
+AUTH_JSON ?= $(HOME)/.codex/auth.json
 agent-copy-auth:
-	@if [ -f "$(CLAUDE_CREDS)" ]; then \
-		echo "[yolobox] Copying Claude credentials to $(AGENT)"; \
-		docker exec $(AGENT) bash -lc "mkdir -p '$(CONTAINER_HOME)/.claude'"; \
-		docker cp "$(CLAUDE_CREDS)" $(AGENT):"$(CONTAINER_HOME)/.claude/.credentials.json"; \
-	fi
-	@if [ -f "$(CODEX_AUTH)" ]; then \
-		echo "[yolobox] Copying Codex auth to $(AGENT)"; \
-		docker exec $(AGENT) bash -lc "mkdir -p '$(CONTAINER_HOME)/.codex'"; \
-		docker cp "$(CODEX_AUTH)" $(AGENT):"$(CONTAINER_HOME)/.codex/auth.json"; \
-	fi
+	@test -f "$(AUTH_JSON)" || (echo "[yolobox] ERROR: AUTH_JSON not found: $(AUTH_JSON)" && exit 2)
+	@echo "[yolobox] Copying $(AUTH_JSON) -> $(AGENT):$(CONTAINER_HOME)/.codex/auth.json"
+	docker exec -it $(AGENT) bash -lc "mkdir -p '$(CONTAINER_HOME)/.codex'"
+	docker cp "$(AUTH_JSON)" $(AGENT):"$(CONTAINER_HOME)/.codex/auth.json"
 
 agents ps:
 	@docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Status}}' | ( sed -u 1q; sort )

@@ -106,7 +106,12 @@ make agent-up AGENT=agent-b
 Copy your auth to the container (never baked into images):
 
 ```bash
-make agent-copy-auth AGENT=agent-a AUTH_JSON=~/.codex/auth.json
+# Copy both Claude and Codex auth (skips missing)
+make agent-copy-auth AGENT=agent-a
+
+# Or copy individually
+make agent-copy-claude-auth AGENT=agent-a
+make agent-copy-codex-auth AGENT=agent-a
 ```
 
 ## Build Options

@@ -103,11 +103,20 @@ make agent-up AGENT=agent-b
 
 ## Coding Agent Auth
 
-Copy your auth to the container (never baked into images):
+Auth is stored in the persistent home volume.
 
+**Claude Code:** Use the built-in login inside the container:
 ```bash
-make agent-copy-auth AGENT=agent-a AUTH_JSON=~/.codex/auth.json
+make agent-sh AGENT=agent-a
+claude login
 ```
+
+**Codex:** Copy auth from your host:
+```bash
+make agent-copy-codex-auth AGENT=agent-a
+```
+
+Auth persists across container restarts.
 
 ## Build Options
 

@@ -107,9 +107,9 @@ make agent-up AGENT=agent-b
 
 ## Coding Agent Auth
 
-Auth is stored in the persistent home volume.
+Auth is stored in the persistent home volume and persists across container restarts.
 
-**Claude Code:** Use the built-in login inside the container:
+**Claude Code:** Credentials can't be copied from the host—use the built-in login inside the container:
 ```bash
 make agent-sh AGENT=agent-a
 claude login
@@ -119,8 +119,6 @@ claude login
 ```bash
 make agent-copy-codex-auth AGENT=agent-a
 ```
-
-Auth persists across container restarts.
 
 ## Build Options
 

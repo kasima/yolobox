@@ -17,6 +17,7 @@ Run `make agents` to see running containers.
 ```bash
 git submodule add https://github.com/kasima/yolobox.git
 echo 'include yolobox/Makefile.agent' > Makefile
+make agent-init    # creates AGENTS.md
 make dev-image
 make worktree-add AGENT=agent-a
 make agent-up AGENT=agent-a
@@ -26,6 +27,7 @@ make agent-up AGENT=agent-a
 
 | Command | What it does |
 |---------|--------------|
+| `make agent-init` | Create AGENTS.md from template |
 | `make dev-image` | Build the container image |
 | `make worktree-add AGENT=name` | Create isolated git worktree |
 | `make agent-up AGENT=name` | Start a container |

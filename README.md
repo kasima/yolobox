@@ -18,14 +18,17 @@ cat > Makefile << 'EOF'
 include yolobox/Makefile.agent
 EOF
 
-# 3. Build the dev image
+# 3. Create AGENTS.md for coding agents (optional)
+make agent-init
+
+# 4. Build the dev image
 make dev-image
 
-# 4. Create a worktree and spin up a container (defaults to current HEAD)
+# 5. Create a worktree and spin up a container (defaults to current HEAD)
 make worktree-add AGENT=agent-a
 make agent-up AGENT=agent-a
 
-# 5. Shell in
+# 6. Shell in
 make agent-sh AGENT=agent-a
 ```
 
@@ -75,6 +78,7 @@ include yolobox/Makefile.agent
 | Command | Description |
 |---------|-------------|
 | `make dev-image` | Build the dev container image |
+| `make agent-init` | Create AGENTS.md from template |
 | `make worktree-add AGENT=name [BASE=ref]` | Create isolated git worktree (BASE defaults to HEAD) |
 | `make agent-up AGENT=name` | Start container for agent |
 | `make agent-sh AGENT=name` | Shell into running container |

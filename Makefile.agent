@@ -1,5 +1,9 @@
 SHELL := /bin/bash
 
+# Capture yolobox location BEFORE -include agent.config appends to MAKEFILE_LIST
+# (lastword changes after the include, so this must come first)
+_YOLOBOX_ABS := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+
 # Include project config if present
 -include agent.config
 
@@ -11,10 +15,7 @@ WORKTREES_DIR ?= worktrees
 BASE ?= HEAD
 AGENT ?= agent-a
 
-# Auto-detect paths from Makefile locations:
-#   lastword  = this file (wherever yolobox lives)
-#   firstword = the project's top-level Makefile
-_YOLOBOX_ABS := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+# Repo root: directory containing the top-level Makefile
 ifndef REPO_ROOT
   REPO_ROOT := $(patsubst %/,%,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
 endif

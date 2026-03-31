@@ -18,8 +18,8 @@ _YOLOBOX_ABS := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 ifndef REPO_ROOT
   REPO_ROOT := $(patsubst %/,%,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
 endif
-# Express YOLOBOX_PATH relative to REPO_ROOT (handles submodule, copy, or root-level use)
-YOLOBOX_PATH := $(or $(patsubst $(REPO_ROOT)/%,%,$(_YOLOBOX_ABS)),.)
+# Relative path from project root to yolobox dir (used as Docker build arg for COPY commands)
+YOLOBOX_PATH := $(shell realpath --relative-to="$(REPO_ROOT)" "$(_YOLOBOX_ABS)")
 
 # Default image name derived from project directory; override in agent.config
 DEV_IMAGE ?= $(notdir $(REPO_ROOT))-dev
@@ -60,7 +60,7 @@ agent-init:
 
 dev-image:
 	@echo "[yolobox] Building dev image: $(DEV_IMAGE)"
-	docker build -f $(YOLOBOX_PATH)/docker/dev.Dockerfile -t $(DEV_IMAGE) --build-arg YOLOBOX_PATH=$(YOLOBOX_PATH) $(BUILD_ARGS) .
+	docker build -f $(_YOLOBOX_ABS)/docker/dev.Dockerfile -t $(DEV_IMAGE) --build-arg YOLOBOX_PATH=$(YOLOBOX_PATH) $(BUILD_ARGS) .
 
 worktree-add:
 	@echo "[yolobox] worktree-add AGENT=$(AGENT) BASE=$(BASE)"

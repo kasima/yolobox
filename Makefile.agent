@@ -42,11 +42,15 @@ CLAUDE_MOUNT := $(if $(wildcard $(HOME)/.claude),-v $(HOME)/.claude:$(CONTAINER_
 # Optional port publishing, e.g. AGENT_PORTS=-p 18789:18789 (set in agent.config)
 AGENT_PORTS ?=
 
+# Optional extra docker run flags, e.g. EXTRA_DOCKER_FLAGS=--cap-add=NET_ADMIN --device /dev/net/tun:/dev/net/tun
+EXTRA_DOCKER_FLAGS ?=
+
 # Optional startup command run via login shell (so PATH/profile are set up correctly)
 # e.g. AGENT_CMD=openclaw gateway run --bind lan
 AGENT_CMD ?=
 
-DOCKER_RUN_COMMON := --restart unless-stopped --cap-drop=ALL --cap-add=SETUID --cap-add=SETGID --cap-add=AUDIT_WRITE \
+DOCKER_RUN_COMMON := --restart unless-stopped \
+	$(EXTRA_DOCKER_FLAGS) \
 	-v "$(HOST_WORKTREE)":/workspace \
 	-v "$(HOST_WORKTREE)":"$(HOST_WORKTREE)" \
 	-v "$(GIT_DIR)":"$(GIT_DIR)" \
@@ -133,7 +137,8 @@ agent-up-direct:
 		$(DEV_IMAGE) bash -lc "chown -R $(HOST_UID):$(HOST_GID) /venv /npm /pipcache $(CONTAINER_HOME) || true"
 	@echo "[yolobox] Starting container: $(AGENT)"
 	docker run -d --name $(AGENT) --user $(HOST_UID):$(HOST_GID) \
-		--restart unless-stopped --cap-drop=ALL --cap-add=SETUID --cap-add=SETGID --cap-add=AUDIT_WRITE \
+		--restart unless-stopped \
+		$(EXTRA_DOCKER_FLAGS) \
 		-v "$(REPO_ROOT)":/workspace \
 		-v "$(PIPCACHE_VOL)":/pipcache \
 		-v "$(VENV_VOL)":/venv \

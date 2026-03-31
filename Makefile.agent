@@ -39,6 +39,9 @@ CONTAINER_HOME ?= /home/agent
 # Mount ~/.claude if present on host for seamless Claude Code auth
 CLAUDE_MOUNT := $(if $(wildcard $(HOME)/.claude),-v $(HOME)/.claude:$(CONTAINER_HOME)/.claude,)
 
+# Optional port publishing, e.g. AGENT_PORTS=-p 18789:18789 (set in agent.config)
+AGENT_PORTS ?=
+
 DOCKER_RUN_COMMON := --restart unless-stopped --cap-drop=ALL --cap-add=SETUID --cap-add=SETGID --cap-add=AUDIT_WRITE \
 	-v "$(HOST_WORKTREE)":/workspace \
 	-v "$(HOST_WORKTREE)":"$(HOST_WORKTREE)" \
@@ -126,13 +129,14 @@ agent-up-direct:
 		$(DEV_IMAGE) bash -lc "chown -R $(HOST_UID):$(HOST_GID) /venv /npm /pipcache $(CONTAINER_HOME) || true"
 	@echo "[yolobox] Starting container: $(AGENT)"
 	docker run -d --name $(AGENT) --user $(HOST_UID):$(HOST_GID) \
-		--restart unless-stopped --cap-drop=ALL --security-opt no-new-privileges:true \
+		--restart unless-stopped --cap-drop=ALL --cap-add=SETUID --cap-add=SETGID --cap-add=AUDIT_WRITE \
 		-v "$(REPO_ROOT)":/workspace \
 		-v "$(PIPCACHE_VOL)":/pipcache \
 		-v "$(VENV_VOL)":/venv \
 		-v "$(NPM_VOL)":/npm \
 		-v "$(HOME_VOL)":$(CONTAINER_HOME) \
 		$(CLAUDE_MOUNT) \
+		$(AGENT_PORTS) \
 		-e HOME=$(CONTAINER_HOME) -e CONTAINER_HOME=$(CONTAINER_HOME) \
 		-w /workspace \
 		$(DEV_IMAGE)

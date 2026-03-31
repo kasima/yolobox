@@ -11,13 +11,15 @@ WORKTREES_DIR ?= worktrees
 BASE ?= HEAD
 AGENT ?= agent-a
 
-# Path to yolobox (auto-detect from this Makefile's location)
-YOLOBOX_PATH := $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))
-
-# Repo root: parent of yolobox if using submodule, or current dir if standalone
+# Auto-detect paths from Makefile locations:
+#   lastword  = this file (wherever yolobox lives)
+#   firstword = the project's top-level Makefile
+_YOLOBOX_ABS := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 ifndef REPO_ROOT
-  REPO_ROOT := $(abspath $(patsubst %/,%,$(dir $(firstword $(MAKEFILE_LIST)))))
+  REPO_ROOT := $(patsubst %/,%,$(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
 endif
+# Express YOLOBOX_PATH relative to REPO_ROOT (handles submodule, copy, or root-level use)
+YOLOBOX_PATH := $(or $(patsubst $(REPO_ROOT)/%,%,$(_YOLOBOX_ABS)),.)
 
 # Default image name derived from project directory; override in agent.config
 DEV_IMAGE ?= $(notdir $(REPO_ROOT))-dev

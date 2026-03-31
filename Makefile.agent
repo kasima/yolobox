@@ -169,10 +169,11 @@ agent-down:
 	@echo "[yolobox] Removing home volume: $(HOME_VOL)"
 	- docker volume rm $(HOME_VOL) >/dev/null 2>&1 || true
 
-# Install coding agent CLIs into per-agent npm volume
+# Install/update coding agent CLIs
 agent-setup-tools:
 	@echo "[yolobox] Installing coding agent CLIs for $(AGENT)"
-	docker exec -it $(AGENT) bash -lc "npm config set prefix /npm && npm i -g @openai/codex @anthropic-ai/claude-code"
+	docker exec -it $(AGENT) bash -lc "curl -fsSL https://claude.ai/install.sh | bash"
+	docker exec -it $(AGENT) bash -lc "npm config set prefix /npm && npm i -g @openai/codex"
 
 # Copy Codex auth to container
 CODEX_AUTH ?= $(HOME)/.codex/auth.json

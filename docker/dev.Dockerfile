@@ -8,7 +8,6 @@ ARG NODE_VERSION=22.20.0
 ARG INSTALL_NODE=true
 ARG INSTALL_AGENT_CLI=true
 ARG CODEX_VERSION=latest
-ARG CLAUDE_CODE_VERSION=latest
 ARG EXTRA_PIP_PACKAGES=""
 
 # Essential dev tools
@@ -79,8 +78,11 @@ RUN set -eux; \
     rm -f /tmp/requirements.txt*
 
 # Optionally install coding agent CLIs globally
+RUN if [ "$INSTALL_AGENT_CLI" = "true" ]; then \
+      curl -fsSL https://claude.ai/install.sh | bash; \
+    fi
 RUN if [ "$INSTALL_AGENT_CLI" = "true" ] && ( [ "$INSTALL_NODE" = "true" ] || command -v node >/dev/null 2>&1 ); then \
-      npm i -g @openai/codex@${CODEX_VERSION} @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}; \
+      npm i -g @openai/codex@${CODEX_VERSION}; \
     fi
 
 # Auto-scale thread env vars to CPU count in interactive shells

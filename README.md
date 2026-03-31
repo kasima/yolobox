@@ -150,6 +150,9 @@ make dev-image BUILD_ARGS="--build-arg REQUIREMENTS_FILE=requirements.txt"
 # Extra pip packages baked into the image
 make dev-image BUILD_ARGS="--build-arg EXTRA_PIP_PACKAGES='pytest ipython'"
 
+# Pin Codex version
+make dev-image BUILD_ARGS="--build-arg CODEX_VERSION=0.1.0"
+
 # Skip coding agent CLIs
 make dev-image BUILD_ARGS="--build-arg INSTALL_AGENT_CLI=false"
 ```

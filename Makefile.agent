@@ -158,7 +158,8 @@ agent-stop:
 	@echo "[yolobox] Keeping worktree and home volume: $(HOME_VOL)"
 
 agent-down:
-	@echo "[yolobox] Tearing down: $(AGENT)"
+	@echo "[yolobox] WARNING: This will permanently delete the container, all volumes (including home), and the worktree for AGENT=$(AGENT)."
+	@read -p "Are you sure? [y/N] " confirm && [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]
 	- docker rm -f $(AGENT) >/dev/null 2>&1 || true
 	@echo "[yolobox] Removing volumes: $(PIPCACHE_VOL) $(VENV_VOL) $(NPM_VOL)"
 	- docker volume rm $(PIPCACHE_VOL) >/dev/null 2>&1 || true

@@ -42,6 +42,10 @@ CLAUDE_MOUNT := $(if $(wildcard $(HOME)/.claude),-v $(HOME)/.claude:$(CONTAINER_
 # Optional port publishing, e.g. AGENT_PORTS=-p 18789:18789 (set in agent.config)
 AGENT_PORTS ?=
 
+# Optional startup command run via login shell (so PATH/profile are set up correctly)
+# e.g. AGENT_CMD=openclaw gateway run --bind lan
+AGENT_CMD ?=
+
 DOCKER_RUN_COMMON := --restart unless-stopped --cap-drop=ALL --cap-add=SETUID --cap-add=SETGID --cap-add=AUDIT_WRITE \
 	-v "$(HOST_WORKTREE)":/workspace \
 	-v "$(HOST_WORKTREE)":"$(HOST_WORKTREE)" \
@@ -139,7 +143,7 @@ agent-up-direct:
 		$(AGENT_PORTS) \
 		-e HOME=$(CONTAINER_HOME) -e CONTAINER_HOME=$(CONTAINER_HOME) \
 		-w /workspace \
-		$(DEV_IMAGE)
+		$(DEV_IMAGE) $(if $(AGENT_CMD),bash -lc "$(AGENT_CMD)",)
 	@echo "[yolobox] Ensuring passwd/group entries for UID=$(HOST_UID) GID=$(HOST_GID)"
 	docker exec -u 0 $(AGENT) bash -lc "\
 		if ! getent group $(HOST_GID) >/dev/null 2>&1; then \

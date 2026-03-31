@@ -4,7 +4,6 @@ SHELL := /bin/bash
 -include agent.config
 
 # Defaults (override via agent.config or command line)
-DEV_IMAGE ?= yolobox-dev
 BUILD_ARGS ?=
 HOST_UID := $(shell id -u)
 HOST_GID := $(shell id -g)
@@ -15,21 +14,28 @@ AGENT ?= agent-a
 # Path to yolobox (auto-detect from this Makefile's location)
 YOLOBOX_PATH := $(patsubst %/,%,$(dir $(lastword $(MAKEFILE_LIST))))
 
-# Repo root is parent of yolobox if using submodule, or current dir if using include
-# Use REPO_ROOT if set, otherwise detect from main Makefile
+# Repo root: parent of yolobox if using submodule, or current dir if standalone
 ifndef REPO_ROOT
   REPO_ROOT := $(abspath $(patsubst %/,%,$(dir $(firstword $(MAKEFILE_LIST)))))
 endif
+
+# Default image name derived from project directory; override in agent.config
+DEV_IMAGE ?= $(notdir $(REPO_ROOT))-dev
 
 WORKTREES_PATH := $(abspath $(REPO_ROOT)/$(WORKTREES_DIR))
 HOST_WORKTREE := $(abspath $(WORKTREES_PATH)/$(AGENT))
 GIT_DIR := $(abspath $(REPO_ROOT)/.git)
 
-PIPCACHE_VOL := $(AGENT)-pipcache
-VENV_VOL := $(AGENT)-venv
-NPM_VOL := $(AGENT)-npm
-HOME_VOL := $(AGENT)-home
+# Volume names prefixed with image name to prevent cross-project collisions
+PIPCACHE_VOL := $(DEV_IMAGE)-$(AGENT)-pipcache
+VENV_VOL := $(DEV_IMAGE)-$(AGENT)-venv
+NPM_VOL := $(DEV_IMAGE)-$(AGENT)-npm
+HOME_VOL := $(DEV_IMAGE)-$(AGENT)-home
 CONTAINER_HOME ?= /home/agent
+
+# Mount ~/.claude if present on host for seamless Claude Code auth
+CLAUDE_MOUNT := $(if $(wildcard $(HOME)/.claude),-v $(HOME)/.claude:$(CONTAINER_HOME)/.claude,)
+
 DOCKER_RUN_COMMON := --restart unless-stopped --cap-drop=ALL --security-opt no-new-privileges:true \
 	-v "$(HOST_WORKTREE)":/workspace \
 	-v "$(HOST_WORKTREE)":"$(HOST_WORKTREE)" \
@@ -38,10 +44,11 @@ DOCKER_RUN_COMMON := --restart unless-stopped --cap-drop=ALL --security-opt no-n
 	-v "$(VENV_VOL)":/venv \
 	-v "$(NPM_VOL)":/npm \
 	-v "$(HOME_VOL)":$(CONTAINER_HOME) \
+	$(CLAUDE_MOUNT) \
 	-e HOME=$(CONTAINER_HOME) -e CONTAINER_HOME=$(CONTAINER_HOME) \
 	-w /workspace
 
-.PHONY: dev-image worktree-add worktree-rm agent-up agent-sh agent-stop agent-down agents ps agent-setup-tools agent-copy-codex-auth agent-init
+.PHONY: dev-image worktree-add worktree-rm agent-up agent-up-direct agent-sh agent-stop agent-down agents ps agent-setup-tools agent-copy-codex-auth agent-init
 
 agent-init:
 	@if [ ! -f "$(REPO_ROOT)/AGENTS.md" ]; then \
@@ -86,6 +93,45 @@ agent-up:
 		$(DEV_IMAGE) bash -lc "chown -R $(HOST_UID):$(HOST_GID) /venv /npm /pipcache $(CONTAINER_HOME) || true"
 	@echo "[yolobox] Starting container: $(AGENT)"
 	docker run -d --name $(AGENT) --user $(HOST_UID):$(HOST_GID) $(DOCKER_RUN_COMMON) $(DEV_IMAGE)
+	@echo "[yolobox] Ensuring passwd/group entries for UID=$(HOST_UID) GID=$(HOST_GID)"
+	docker exec -u 0 $(AGENT) bash -lc "\
+		if ! getent group $(HOST_GID) >/dev/null 2>&1; then \
+			echo 'agent:x:$(HOST_GID):' >> /etc/group; \
+		fi; \
+		if ! getent passwd $(HOST_UID) >/dev/null 2>&1; then \
+			echo 'agent:x:$(HOST_UID):$(HOST_GID):Agent User:/home/agent:/bin/bash' >> /etc/passwd; \
+		fi"
+	@echo "[yolobox] Use: make agent-sh AGENT=$(AGENT)"
+
+# Start a container with the live project mounted directly (no worktree required).
+# Useful for single-agent experimentation where branch isolation isn't needed.
+agent-up-direct:
+	@echo "[yolobox] agent-up-direct AGENT=$(AGENT) (direct mount, no worktree)"
+	@echo "[yolobox] Creating volumes: $(PIPCACHE_VOL) $(VENV_VOL) $(NPM_VOL) $(HOME_VOL)"
+	docker volume create $(PIPCACHE_VOL) >/dev/null
+	docker volume create $(VENV_VOL) >/dev/null
+	docker volume create $(NPM_VOL) >/dev/null
+	docker volume create $(HOME_VOL) >/dev/null
+	- docker rm -f $(AGENT) >/dev/null 2>&1 || true
+	@echo "[yolobox] Fixing volume ownership to $(HOST_UID):$(HOST_GID)"
+	docker run --rm \
+		-v "$(VENV_VOL)":/venv \
+		-v "$(NPM_VOL)":/npm \
+		-v "$(PIPCACHE_VOL)":/pipcache \
+		-v "$(HOME_VOL)":$(CONTAINER_HOME) \
+		$(DEV_IMAGE) bash -lc "chown -R $(HOST_UID):$(HOST_GID) /venv /npm /pipcache $(CONTAINER_HOME) || true"
+	@echo "[yolobox] Starting container: $(AGENT)"
+	docker run -d --name $(AGENT) --user $(HOST_UID):$(HOST_GID) \
+		--restart unless-stopped --cap-drop=ALL --security-opt no-new-privileges:true \
+		-v "$(REPO_ROOT)":/workspace \
+		-v "$(PIPCACHE_VOL)":/pipcache \
+		-v "$(VENV_VOL)":/venv \
+		-v "$(NPM_VOL)":/npm \
+		-v "$(HOME_VOL)":$(CONTAINER_HOME) \
+		$(CLAUDE_MOUNT) \
+		-e HOME=$(CONTAINER_HOME) -e CONTAINER_HOME=$(CONTAINER_HOME) \
+		-w /workspace \
+		$(DEV_IMAGE)
 	@echo "[yolobox] Ensuring passwd/group entries for UID=$(HOST_UID) GID=$(HOST_GID)"
 	docker exec -u 0 $(AGENT) bash -lc "\
 		if ! getent group $(HOST_GID) >/dev/null 2>&1; then \

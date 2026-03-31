@@ -43,10 +43,12 @@ The agent will handle the git submodule, Makefile creation, image build, and con
 ## What You Get
 
 Each agent container has:
-- **Python 3.11** with scientific libs (numpy, opencv support)
-- **Node.js 22** (configurable)
+- **Configurable base image** (default: `python:3.11-bookworm`; swap for any Debian-based image)
+- **Node.js 22** (optional, configurable version)
 - **Coding agent CLIs** pre-installed (`claude-code`, `codex`)
 - **GitHub CLI** (`gh`)
+- **Passwordless sudo** for installing packages interactively
+- **Claude Code auth** auto-mounted from `~/.claude` on the host (no login needed)
 - **Isolated git worktree** - each agent works on its own branch
 - **Persistent volumes** - venv, npm, pip cache survive restarts
 - **Host UID mapping** - files are owned by your user, not root
@@ -57,7 +59,10 @@ Create `agent.config` in your repo root for project-specific settings:
 
 ```bash
 # agent.config
-DEV_IMAGE=myproject-dev
+# DEV_IMAGE is auto-derived from your project directory name (e.g. myproject-dev)
+# Override here only if you need a specific name:
+# DEV_IMAGE=myproject-dev
+
 BASE=origin/main   # override default HEAD
 
 # Optional: install project requirements into image
@@ -80,11 +85,24 @@ include yolobox/Makefile.agent
 | `make dev-image` | Build the dev container image |
 | `make agent-init` | Create AGENTS.md from template |
 | `make worktree-add AGENT=name [BASE=ref]` | Create isolated git worktree (BASE defaults to HEAD) |
-| `make agent-up AGENT=name` | Start container for agent |
+| `make agent-up AGENT=name` | Start container for agent (uses git worktree) |
+| `make agent-up-direct AGENT=name` | Start container with live project mounted directly (no worktree) |
 | `make agent-sh AGENT=name` | Shell into running container |
 | `make agent-stop AGENT=name` | Stop container, keep worktree |
 | `make agent-down AGENT=name` | Remove everything (container, volumes, worktree) |
 | `make agents` | List running agent containers |
+
+## Single-Agent / Experimentation Workflow
+
+For poking around without branch isolation, skip the worktree step and mount the live project directly:
+
+```bash
+make dev-image
+make agent-up-direct AGENT=lab
+make agent-sh AGENT=lab
+```
+
+Changes you make in `/workspace` inside the container are immediately reflected on the host, and vice versa.
 
 ## Multi-Agent Workflow
 
@@ -97,23 +115,15 @@ make worktree-add AGENT=agent-b BASE=origin/main
 make agent-up AGENT=agent-a
 make agent-up AGENT=agent-b
 
-# Each agent has isolated:
-# - Git worktree (worktrees/agent-a, worktrees/agent-b)
-# - Python venv (/venv volume)
-# - npm packages (/npm volume)
-# - pip cache (/pipcache volume)
-# - Home directory (/home/agent volume)
+# Each agent has completely isolated volumes, namespaced by image+agent name:
+# myproject-dev-agent-a-venv, myproject-dev-agent-b-venv, etc.
 ```
+
+Volume names are prefixed with the image name (`DEV_IMAGE`) so agents across different projects never share volumes, even if they share the same agent name.
 
 ## Coding Agent Auth
 
-Auth is stored in the persistent home volume and persists across container restarts.
-
-**Claude Code:** Credentials can't be copied from the host—use the built-in login inside the container:
-```bash
-make agent-sh AGENT=agent-a
-claude login
-```
+**Claude Code:** Your host `~/.claude` directory is automatically mounted into the container. Claude Code auth works immediately with no extra steps.
 
 **Codex:** Copy auth from your host:
 ```bash
@@ -125,14 +135,20 @@ make agent-copy-codex-auth AGENT=agent-a
 Customize the image at build time:
 
 ```bash
+# Use a different base image (e.g. Node.js only, no Python)
+make dev-image BUILD_ARGS="--build-arg BASE_IMAGE=node:22-bookworm --build-arg INSTALL_NODE=false"
+
 # Skip Node.js (pure Python project)
 make dev-image BUILD_ARGS="--build-arg INSTALL_NODE=false"
 
 # Different Node version
 make dev-image BUILD_ARGS="--build-arg NODE_VERSION=20.17.0"
 
-# Include project requirements
+# Include project requirements baked into the image
 make dev-image BUILD_ARGS="--build-arg REQUIREMENTS_FILE=requirements.txt"
+
+# Extra pip packages baked into the image
+make dev-image BUILD_ARGS="--build-arg EXTRA_PIP_PACKAGES='pytest ipython'"
 
 # Skip coding agent CLIs
 make dev-image BUILD_ARGS="--build-arg INSTALL_AGENT_CLI=false"
@@ -148,7 +164,7 @@ make agents  # List running containers
 ```
 
 **Your environment:**
-- Working directory: `/workspace` (the git worktree)
+- Working directory: `/workspace` (the git worktree or live project mount)
 - Python venv: `/venv` (persistent across restarts)
 - npm packages: `/npm` (persistent)
 - pip cache: `/pipcache` (persistent)
@@ -159,11 +175,11 @@ make agents  # List running containers
 # Install Python packages (persists in /venv)
 pip install some-package
 
+# Install system packages (passwordless sudo available)
+sudo apt-get install some-package
+
 # Install npm packages (persists in /npm)
 npm i -g some-tool
-
-# Run commands in the container
-make agent-sh AGENT=agent-a
 ```
 
 **If you need to set up a new agent container:**

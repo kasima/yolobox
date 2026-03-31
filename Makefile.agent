@@ -36,7 +36,7 @@ CONTAINER_HOME ?= /home/agent
 # Mount ~/.claude if present on host for seamless Claude Code auth
 CLAUDE_MOUNT := $(if $(wildcard $(HOME)/.claude),-v $(HOME)/.claude:$(CONTAINER_HOME)/.claude,)
 
-DOCKER_RUN_COMMON := --restart unless-stopped --cap-drop=ALL --security-opt no-new-privileges:true \
+DOCKER_RUN_COMMON := --restart unless-stopped --cap-drop=ALL --cap-add=SETUID --cap-add=SETGID --cap-add=AUDIT_WRITE \
 	-v "$(HOST_WORKTREE)":/workspace \
 	-v "$(HOST_WORKTREE)":"$(HOST_WORKTREE)" \
 	-v "$(GIT_DIR)":"$(GIT_DIR)" \
@@ -100,6 +100,7 @@ agent-up:
 		fi; \
 		if ! getent passwd $(HOST_UID) >/dev/null 2>&1; then \
 			echo 'agent:x:$(HOST_UID):$(HOST_GID):Agent User:/home/agent:/bin/bash' >> /etc/passwd; \
+			echo 'agent:*:19999:0:99999:7:::' >> /etc/shadow; \
 		fi"
 	@echo "[yolobox] Use: make agent-sh AGENT=$(AGENT)"
 
@@ -139,6 +140,7 @@ agent-up-direct:
 		fi; \
 		if ! getent passwd $(HOST_UID) >/dev/null 2>&1; then \
 			echo 'agent:x:$(HOST_UID):$(HOST_GID):Agent User:/home/agent:/bin/bash' >> /etc/passwd; \
+			echo 'agent:*:19999:0:99999:7:::' >> /etc/shadow; \
 		fi"
 	@echo "[yolobox] Use: make agent-sh AGENT=$(AGENT)"
 

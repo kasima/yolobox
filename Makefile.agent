@@ -71,6 +71,10 @@ agent-init:
 	fi
 
 dev-image:
+	@if docker image inspect $(DEV_IMAGE) >/dev/null 2>&1; then \
+		echo "[yolobox] WARNING: Image '$(DEV_IMAGE)' already exists. Rebuilding will invalidate any running containers using it."; \
+		read -p "Rebuild image? [y/N] " confirm && [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ] || exit 0; \
+	fi
 	@echo "[yolobox] Building dev image: $(DEV_IMAGE)"
 	docker build -f $(_YOLOBOX_ABS)/docker/dev.Dockerfile -t $(DEV_IMAGE) --build-arg YOLOBOX_PATH=$(YOLOBOX_PATH) $(BUILD_ARGS) .
 
@@ -121,6 +125,10 @@ agent-up:
 # Start a container with the live project mounted directly (no worktree required).
 # Useful for single-agent experimentation where branch isolation isn't needed.
 agent-up-direct:
+	@if docker ps -q --filter "name=^$(AGENT)$$" | grep -q .; then \
+		echo "[yolobox] WARNING: Container '$(AGENT)' is currently running. Recreating it will stop all processes inside (including any running gateway/services)."; \
+		read -p "Recreate container? [y/N] " confirm && [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ] || exit 0; \
+	fi
 	@echo "[yolobox] agent-up-direct AGENT=$(AGENT) (direct mount, no worktree)"
 	@echo "[yolobox] Creating volumes: $(PIPCACHE_VOL) $(VENV_VOL) $(NPM_VOL) $(HOME_VOL)"
 	docker volume create $(PIPCACHE_VOL) >/dev/null
